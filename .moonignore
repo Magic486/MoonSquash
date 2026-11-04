@@ -2,3 +2,10 @@
 .git/
 _build/
 target/
+.mooncakes/
+.moonagent/
+.github/
+.githooks/
+output/
+__pycache__/
+*.pyc

@@ -18,6 +18,8 @@ pub fn Image::inode(
   let uid = self.identity(u16(base, 4))
   let gid = self.identity(u16(base, 6))
   let mut links = 1
+  let mut xattr = 0xffffffffU
+  let mut parent = 0
   let content = match kind {
     1 | 8 => {
       let long = kind == 8
@@ -30,6 +32,10 @@ pub fn Image::inode(
       }
       let off = u16(b, if long { 34 } else { 26 })
       links = index(u32(b, if long { 16 } else { 20 }).to_uint64(), block)
+      if long {
+        xattr = u32(b, 36)
+      }
+      parent = index(u32(b, 28).to_uint64(), block)
       guard size >= 3 &&
         start <= self.superblock.bytes_used - self.superblock.directory_table else {
         raise Invalid(block, "invalid directory")
@@ -57,6 +63,7 @@ pub fn Image::inode(
       )
       if long {
         links = index(u32(b, 40).to_uint64(), block)
+        xattr = u32(b, 52)
       }
       let bs = self.superblock.block_size
       let count = size / bs +
@@ -71,16 +78,25 @@ pub fn Image::inode(
       links = index(u32(b, 16).to_uint64(), block)
       let len = index(u32(b, 20).to_uint64(), block)
       guard len > 0 && len <= 65536 else { raise Limit("symlink length") }
+      if kind == 10 {
+        xattr = u32(self.metadata(block, offset, 28 + len), 24 + len)
+      }
       Symlink(region(self.metadata(block, offset, 24 + len), 24, len))
     }
     4 | 5 | 11 | 12 => {
       let b = self.metadata(block, offset, 24)
       links = index(u32(b, 16).to_uint64(), block)
+      if kind > 7 {
+        xattr = u32(self.metadata(block, offset, 28), 24)
+      }
       Device(u32(b, 20))
     }
     6 | 7 | 13 | 14 => {
       let b = self.metadata(block, offset, 20)
       links = index(u32(b, 16).to_uint64(), block)
+      if kind > 7 {
+        xattr = u32(self.metadata(block, offset, 24), 20)
+      }
       Special
     }
     _ => raise Invalid(block, "unknown inode type \{kind}")
@@ -94,6 +110,8 @@ pub fn Image::inode(
     gid,
     mtime: u32(base, 8),
     links,
+    xattr,
+    parent,
     content,
   }
 }

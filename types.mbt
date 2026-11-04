@@ -43,6 +43,8 @@ pub(all) struct Inode {
   gid : UInt
   mtime : UInt
   links : Int
+  xattr : UInt
+  parent : Int
   content : Content
 } derive(Debug)
 
@@ -56,9 +58,12 @@ pub(all) struct DirEntry {
 
 ///|
 pub struct Image {
-  bytes : Bytes
+  read : (Int, Int) -> Bytes raise SquashError
   superblock : Superblock
   decode : (Int, Bytes, Int) -> Bytes raise SquashError
+  cache : Map[Int, (Bytes, Int)]
+  data_cache : Map[String, Bytes]
+  offsets : Map[UInt64, Array[Int]]
 }
 
 ///|

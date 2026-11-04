@@ -5,3 +5,5 @@ target
 .mooncakes/
 .moonagent/
 .local/
+__pycache__/
+*.pyc

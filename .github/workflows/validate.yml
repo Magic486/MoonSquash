@@ -1,0 +1,41 @@
+name: MoonSquash validation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install MoonBit and independent test dependencies
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y python3 squashfs-tools liblzma5 liblz4-1 libzstd1 liblzo2-2
+      - name: Record environment and test library
+        run: |
+          moon version --all
+          mksquashfs -version
+          moon fmt --check
+          moon check --target js
+          moon test --target js
+          moon test --target wasm-gc
+          moon build --target js
+          moon run examples/basic --target wasm-gc
+      - name: Independent oracle and host regressions
+        env:
+          # Distro builds may omit deprecated LZMA. The recorded local matrix
+          # additionally tests LZMA with squashfs-tools 4.7.5.
+          MOONSQUASH_TEST_CODECS: gzip,xz,zstd,lz4,lzo
+        run: |
+          python3 scripts/linux_oracle.py scripts/moonsquash.cjs
+          python3 scripts/full_oracle.py scripts/moonsquash.cjs
+          python3 scripts/host_regressions.py scripts/moonsquash.cjs
+      - name: Actual archive consumer
+        run: |
+          moon package
+          python3 scripts/package_consumer.py _build/publish/local-moonsquash-0.2.0.zip

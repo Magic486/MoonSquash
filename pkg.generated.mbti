@@ -6,11 +6,15 @@ import {
 }
 
 // Values
-pub fn build_image(Array[BuildEntry], block_size? : Int, created? : UInt) -> Bytes raise SquashError
+pub fn build_image(Array[BuildEntry], block_size? : Int, created? : UInt, attributes? : Map[String, BuildMetadata], compression? : Int, encode? : ((Int, Bytes) -> Bytes raise SquashError)?, fragments? : Bool, exportable? : Bool) -> Bytes raise SquashError
+
+pub fn diff_images(Image, Image) -> Array[Difference] raise SquashError
 
 pub fn no_decompressor(Int, Bytes, Int) -> Bytes raise SquashError
 
 pub fn open_image(Bytes, decode? : (Int, Bytes, Int) -> Bytes raise SquashError) -> Image raise SquashError
+
+pub fn open_source(Int, (Int, Int) -> Bytes raise SquashError, decode? : (Int, Bytes, Int) -> Bytes raise SquashError) -> Image raise SquashError
 
 pub fn read_superblock(Bytes) -> Superblock raise SquashError
 
@@ -26,12 +30,24 @@ pub(all) enum BuildContent {
   Folder
   Regular(Bytes)
   Symbolic(Bytes)
+  Hardlink(String)
+  BlockDevice(UInt)
+  CharDevice(UInt)
+  Fifo
+  Socket
 } derive(@debug.Debug)
 
 pub(all) struct BuildEntry {
   path : String
   mode : Int
   content : BuildContent
+} derive(@debug.Debug)
+
+pub(all) struct BuildMetadata {
+  uid : UInt
+  gid : UInt
+  mtime : UInt
+  xattrs : Array[Xattr]
 } derive(@debug.Debug)
 
 pub(all) enum Content {
@@ -42,6 +58,11 @@ pub(all) enum Content {
   Special
 } derive(@debug.Debug)
 
+pub(all) struct Difference {
+  path : String
+  changes : Array[String]
+} derive(@debug.Debug)
+
 pub(all) struct DirEntry {
   name : Bytes
   reference : UInt64
@@ -50,17 +71,24 @@ pub(all) struct DirEntry {
 } derive(@debug.Debug)
 
 pub struct Image {
-  bytes : Bytes
+  read : (Int, Int) -> Bytes raise SquashError
   superblock : Superblock
   decode : (Int, Bytes, Int) -> Bytes raise SquashError
+  cache : Map[Int, (Bytes, Int)]
+  data_cache : Map[String, Bytes]
+  offsets : Map[UInt64, Array[Int]]
 }
 pub fn Image::entries(Self, Inode) -> Array[DirEntry] raise SquashError
+pub fn Image::export_inode(Self, Int) -> Inode raise SquashError
 pub fn Image::header(Self) -> Superblock
 pub fn Image::inode(Self, UInt64) -> Inode raise SquashError
 pub fn Image::lookup(Self, String) -> Inode raise SquashError
 pub fn Image::read_file(Self, Inode, max_bytes? : Int) -> Bytes raise SquashError
+pub fn Image::read_range(Self, Inode, Int, Int) -> Bytes raise SquashError
 pub fn Image::root(Self) -> Inode raise SquashError
 pub fn Image::tree(Self, max_entries? : Int) -> Array[TreeEntry] raise SquashError
+pub fn Image::verify(Self) -> VerifyReport raise SquashError
+pub fn Image::xattrs(Self, Inode) -> Array[Xattr] raise SquashError
 
 pub(all) struct Inode {
   reference : UInt64
@@ -71,6 +99,8 @@ pub(all) struct Inode {
   gid : UInt
   mtime : UInt
   links : Int
+  xattr : UInt
+  parent : Int
   content : Content
 } derive(@debug.Debug)
 
@@ -96,6 +126,21 @@ pub(all) struct TreeEntry {
   path : String
   inode : Inode
 } derive(@debug.Debug)
+
+pub(all) struct VerifyReport {
+  entries : Int
+  inodes : Int
+  files : Int
+  bytes_checked : UInt64
+  xattrs : Int
+  fragments : Int
+  export_checked : Bool
+} derive(@debug.Debug)
+
+pub(all) struct Xattr {
+  name : Bytes
+  value : Bytes
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

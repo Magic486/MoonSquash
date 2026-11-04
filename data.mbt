@@ -5,6 +5,10 @@ fn Image::data_block(
   descriptor : UInt,
   limit : Int,
 ) -> Bytes raise SquashError {
+  let key = "\{at}:\{descriptor}:\{limit}"
+  if self.data_cache.get(key) is Some(bytes) {
+    return bytes
+  }
   guard (descriptor & 0xfe000000U) == 0U else {
     raise Invalid(at, "reserved data block bits")
   }
@@ -17,7 +21,7 @@ fn Image::data_block(
     size <= self.superblock.inode_table - at else {
     raise Invalid(at, "data overlaps inode table")
   }
-  let b = region(self.bytes, at, size)
+  let b = self.range(at, size)
   let decoded = if (descriptor & 0x1000000U) != 0U {
     b
   } else {
@@ -26,6 +30,10 @@ fn Image::data_block(
   guard decoded.length() > 0 && decoded.length() <= limit else {
     raise Invalid(at, "invalid decoded data length")
   }
+  if self.data_cache.length() >= 16 {
+    self.data_cache.clear()
+  }
+  self.data_cache[key] = decoded
   decoded
 }
 
@@ -66,7 +74,7 @@ pub fn Image::read_file(
     }
     let id = fragment.reinterpret_as_int()
     let table = self.superblock.fragment_table
-    let pointer = index(u64(self.bytes, table + id / 512 * 8), table)
+    let pointer = self.pointer(table + id / 512 * 8)
     let record = self.metadata(pointer, id % 512 * 16, 16)
     let fragment_at = index(u64(record, 0), pointer)
     let data = self.data_block(

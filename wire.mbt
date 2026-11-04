@@ -39,6 +39,11 @@ fn index(value : UInt64, at : Int) -> Int raise SquashError {
 
 ///|
 pub fn read_superblock(data : Bytes) -> Superblock raise SquashError {
+  parse_superblock(data, data.length())
+}
+
+///|
+fn parse_superblock(data : Bytes, length : Int) -> Superblock raise SquashError {
   ignore(region(data, 0, 96))
   guard u32(data, 0) == 0x73717368U else {
     raise Invalid(0, "not SquashFS little-endian magic")
@@ -52,7 +57,7 @@ pub fn read_superblock(data : Bytes) -> Superblock raise SquashError {
     raise Invalid(12, "block size/log mismatch")
   }
   let used = index(u64(data, 40), 40)
-  guard used >= 96 && used <= data.length() else {
+  guard used >= 96 && used <= length else {
     raise Invalid(40, "bytes_used exceeds image")
   }
   let inode_table = index(u64(data, 64), 64)
@@ -108,7 +113,51 @@ pub fn open_image(
   decode? : (Int, Bytes, Int) -> Bytes raise SquashError = no_decompressor,
 ) -> Image raise SquashError {
   let superblock = read_superblock(bytes)
-  { bytes: bytes[:superblock.bytes_used].to_owned(), superblock, decode, }
+  {
+    read: (at, size) => region(bytes, at, size),
+    superblock,
+    decode,
+    cache: Map([]),
+    data_cache: Map([]),
+    offsets: Map([]),
+  }
+}
+
+///|
+/// Open an immutable random-access source. The callback must return exactly
+/// the requested bytes and keep the source stable for the Image lifetime.
+pub fn open_source(
+  length : Int,
+  read : (Int, Int) -> Bytes raise SquashError,
+  decode? : (Int, Bytes, Int) -> Bytes raise SquashError = no_decompressor,
+) -> Image raise SquashError {
+  let superblock = parse_superblock(read(0, 96), length)
+  {
+    read,
+    superblock,
+    decode,
+    cache: Map([]),
+    data_cache: Map([]),
+    offsets: Map([]),
+  }
+}
+
+///|
+fn Image::range(self : Image, at : Int, size : Int) -> Bytes raise SquashError {
+  guard at >= 0 &&
+    size >= 0 &&
+    at <= self.superblock.bytes_used &&
+    size <= self.superblock.bytes_used - at else {
+    raise Invalid(at, "image range")
+  }
+  let b = (self.read)(at, size)
+  guard b.length() == size else { raise Invalid(at, "short source read") }
+  b
+}
+
+///|
+fn Image::pointer(self : Image, at : Int) -> Int raise SquashError {
+  index(u64(self.range(at, 8), 0), at)
 }
 
 ///|
@@ -116,12 +165,15 @@ fn Image::metadata_block(
   self : Image,
   at : Int,
 ) -> (Bytes, Int) raise SquashError {
-  let word = u16(self.bytes, at)
+  if self.cache.get(at) is Some(value) {
+    return value
+  }
+  let word = u16(self.range(at, 2), 0)
   let size = word & 0x7fff
   guard size > 0 && size <= 8192 else {
     raise Invalid(at, "invalid metadata block size")
   }
-  let stored = region(self.bytes, at + 2, size)
+  let stored = self.range(at + 2, size)
   let decoded = if (word & 0x8000) != 0 {
     stored
   } else {
@@ -130,7 +182,12 @@ fn Image::metadata_block(
   guard decoded.length() > 0 && decoded.length() <= 8192 else {
     raise Invalid(at, "invalid decoded metadata size")
   }
-  (decoded, at + 2 + size)
+  let result = (decoded, at + 2 + size)
+  if self.cache.length() >= 128 {
+    self.cache.clear()
+  }
+  self.cache[at] = result
+  result
 }
 
 ///|
@@ -166,9 +223,6 @@ fn Image::identity(self : Image, id : Int) -> UInt raise SquashError {
   guard id < self.superblock.ids else {
     raise Invalid(id, "UID/GID index out of range")
   }
-  let pointer = index(
-    u64(self.bytes, self.superblock.id_table + id / 2048 * 8),
-    48,
-  )
+  let pointer = self.pointer(self.superblock.id_table + id / 2048 * 8)
   u32(self.metadata(pointer, id % 2048 * 4, 4), 0)
 }

@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix='moonsquash-', dir=Path(cli).parent) as 
         assert verification['files_read'] == len(files)
         print(json.dumps({'mode': mode, 'entries': len(entries), 'files_read': verification['files_read'], 'byte_comparisons': 8, 'official': 'mksquashfs/unsquashfs'}, ensure_ascii=False))
     specification = root / 'build.json'
-    specification.write_text(json.dumps({'entries': [
+    specification.write_text(json.dumps({'compression':'none', 'entries': [
         *[{'path': '/' + name, 'source': str(source / name)} for name in files],
         {'path': '/nested/link', 'symlink': '../hello.txt'},
         {'path': '/emptydir', 'directory': True},
