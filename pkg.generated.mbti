@@ -1,0 +1,102 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "local/moonsquash"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn build_image(Array[BuildEntry], block_size? : Int, created? : UInt) -> Bytes raise SquashError
+
+pub fn no_decompressor(Int, Bytes, Int) -> Bytes raise SquashError
+
+pub fn open_image(Bytes, decode? : (Int, Bytes, Int) -> Bytes raise SquashError) -> Image raise SquashError
+
+pub fn read_superblock(Bytes) -> Superblock raise SquashError
+
+// Errors
+pub(all) suberror SquashError {
+  Invalid(Int, String)
+  Unsupported(String)
+  Limit(String)
+} derive(@debug.Debug)
+
+// Types and methods
+pub(all) enum BuildContent {
+  Folder
+  Regular(Bytes)
+  Symbolic(Bytes)
+} derive(@debug.Debug)
+
+pub(all) struct BuildEntry {
+  path : String
+  mode : Int
+  content : BuildContent
+} derive(@debug.Debug)
+
+pub(all) enum Content {
+  Directory(Int, Int, Int)
+  File(Int, Int, UInt, Int, Array[UInt])
+  Symlink(Bytes)
+  Device(UInt)
+  Special
+} derive(@debug.Debug)
+
+pub(all) struct DirEntry {
+  name : Bytes
+  reference : UInt64
+  number : Int
+  kind : Int
+} derive(@debug.Debug)
+
+pub struct Image {
+  bytes : Bytes
+  superblock : Superblock
+  decode : (Int, Bytes, Int) -> Bytes raise SquashError
+}
+pub fn Image::entries(Self, Inode) -> Array[DirEntry] raise SquashError
+pub fn Image::header(Self) -> Superblock
+pub fn Image::inode(Self, UInt64) -> Inode raise SquashError
+pub fn Image::lookup(Self, String) -> Inode raise SquashError
+pub fn Image::read_file(Self, Inode, max_bytes? : Int) -> Bytes raise SquashError
+pub fn Image::root(Self) -> Inode raise SquashError
+pub fn Image::tree(Self, max_entries? : Int) -> Array[TreeEntry] raise SquashError
+
+pub(all) struct Inode {
+  reference : UInt64
+  number : Int
+  kind : Int
+  mode : Int
+  uid : UInt
+  gid : UInt
+  mtime : UInt
+  links : Int
+  content : Content
+} derive(@debug.Debug)
+
+pub(all) struct Superblock {
+  inodes : Int
+  created : UInt
+  block_size : Int
+  fragments : Int
+  compression : Int
+  flags : Int
+  ids : Int
+  root : UInt64
+  bytes_used : Int
+  inode_table : Int
+  directory_table : Int
+  fragment_table : Int
+  id_table : Int
+  xattr_table : UInt64
+  export_table : UInt64
+} derive(@debug.Debug)
+
+pub(all) struct TreeEntry {
+  path : String
+  inode : Inode
+} derive(@debug.Debug)
+
+// Type aliases
+
+// Traits
