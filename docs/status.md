@@ -1,9 +1,10 @@
 # Development status
 
-2026-11-05: new project selected under the user's new-project/large-scope/low-overlap criteria. Research and working read/write foundation are saved locally. No request for further approval is needed to continue local implementation.
+2026-11-05: M1-M4 implemented for the documented 0.2 profile, superseding the initial read/write milestone.
 
-- M1 reading: raw and gzip official images passed independent Linux verification.
-- M2 writing foundation: deterministic raw images accepted and decoded by official unsquashfs.
-- Complete M2/M3/M4 scope remains: compressed output/fragment packing, xattrs, hard-link and ownership preservation, random-access I/O, extraction, whole-image verification, diff, packaging and acceptance materials.
+- Reader: all inode types, six codec adapters, fragments/sparse data, inline/out-of-line xattrs, owner IDs, export indexes and random-access input.
+- Builder: compressed data, tail packing, metadata/ownership, hard links, special records, xattr/export tables and exclusive publication.
+- Workflow: directory packing, safe extraction with omission reporting, semantic diff and structural verification.
+- Delivery: API/demo, independent Linux oracle, JS/Wasm-GC tests, archive consumer and local submission materials. Evidence is in `test-evidence/release-0.2.md`.
 
-Do not label this first milestone as a finished hackathon project. Main proposal is `project-proposal.md`; earlier parent-directory FLAC recommendations are superseded.
+Intentional limits are in README. No remote publication, registry install, registration or official acceptance is claimed. `local/moonsquash` is a placeholder namespace.
