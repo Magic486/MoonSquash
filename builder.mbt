@@ -2,6 +2,7 @@
 pub(all) enum BuildContent {
   Folder
   Regular(Bytes)
+  External(Int)
   Symbolic(Bytes)
   Hardlink(String)
   BlockDevice(UInt)
@@ -25,8 +26,8 @@ priv struct BuildNode {
   content : BuildContent
   mut parent : Int
   children : Array[Int]
-  mut raw_inode : Int
-  mut raw_dir : Int
+  mut reference : UInt64
+  mut dir_reference : UInt64
   mut dir_size : Int
   mut data_start : Int
   blocks : Array[UInt]
@@ -52,7 +53,7 @@ pub(all) struct BuildMetadata {
 fn build_kind(content : BuildContent) -> Int {
   match content {
     Folder => 1
-    Regular(_) | Hardlink(_) => 2
+    Regular(_) | External(_) | Hardlink(_) => 2
     Symbolic(_) => 3
     BlockDevice(_) => 4
     CharDevice(_) => 5
@@ -63,7 +64,7 @@ fn build_kind(content : BuildContent) -> Int {
 
 ///|
 fn store_block(
-  out : Array[Byte],
+  out : BuildOutput,
   data : Bytes,
   compression : Int,
   encode : ((Int, Bytes) -> Bytes raise SquashError)?,
@@ -71,24 +72,12 @@ fn store_block(
   if encode is Some(compress) {
     let packed = compress(compression, data)
     if packed.length() > 0 && packed.length() < data.length() {
-      append_bytes(out, packed)
+      out.append(packed)
       return packed.length().reinterpret_as_uint()
     }
   }
-  append_bytes(out, data)
+  out.append(data)
   data.length().reinterpret_as_uint() | 0x1000000U
-}
-
-///|
-/// Write a raw metadata table followed by its absolute block pointer index.
-fn write_index(out : Array[Byte], raw : Array[Byte]) -> Int {
-  let start = out.length()
-  append_bytes(out, pack_metadata(raw))
-  let table = out.length()
-  for i in 0..<((raw.length() + 8191) / 8192) {
-    put64(out, (start + i * 8194).to_uint64())
-  }
-  table
 }
 
 ///|
@@ -133,12 +122,6 @@ fn pack_metadata(raw : Array[Byte]) -> Bytes {
 }
 
 ///|
-fn metadata_ref(raw_offset : Int) -> UInt64 {
-  ((raw_offset / 8192 * 8194).to_uint64() << 16) |
-  (raw_offset % 8192).to_uint64()
-}
-
-///|
 fn canonical_parts(path : String) -> Array[String] raise SquashError {
   guard path.has_prefix("/") && path != "/" else {
     raise Invalid(0, "build paths must be absolute non-root paths")
@@ -159,10 +142,12 @@ fn canonical_parts(path : String) -> Array[String] raise SquashError {
 }
 
 ///|
-/// Deterministic SquashFS 4 construction. Metadata blocks are deliberately
-/// stored raw for stable inode references; data and fragments may be compressed.
-pub fn build_image(
+/// Deterministic SquashFS 4 construction with child-first compressed metadata.
+fn build_internal(
   entries : Array[BuildEntry],
+  output : BuildOutput,
+  read : ((String, Int, Int) -> Bytes raise SquashError)?,
+  max_data : UInt64,
   block_size? : Int = 131072,
   created? : UInt = 0U,
   attributes? : Map[String, BuildMetadata] = Map([]),
@@ -170,7 +155,8 @@ pub fn build_image(
   encode? : ((Int, Bytes) -> Bytes raise SquashError)? = None,
   fragments? : Bool = true,
   exportable? : Bool = true,
-) -> Bytes raise SquashError {
+  metadata_compression? : Bool = true,
+) -> Superblock raise SquashError {
   guard block_size >= 4096 &&
     block_size <= 1048576 &&
     (block_size & (block_size - 1)) == 0 else {
@@ -180,10 +166,11 @@ pub fn build_image(
     raise Unsupported("compressor ID")
   }
   guard entries.length() <= 10000 else { raise Limit("build entries") }
+  let meta_encode = if metadata_compression { encode } else { None }
   let inputs : Map[String, BuildEntry] = Map([])
   inputs["/"] = { path: "/", mode: 493, content: Folder, }
   let explicit : Map[String, Bool] = Map([])
-  let mut total_data = 0
+  let mut total_data = 0UL
   for e in entries {
     guard e.mode >= 0 && e.mode <= 4095 else {
       raise Invalid(0, "mode exceeds permission bits")
@@ -201,11 +188,19 @@ pub fn build_image(
       canonical_parts(e.path)
     }
     match e.content {
-      Regular(b) => {
-        guard b.length() <= 134217728 - total_data else {
-          raise Limit("build data exceeds 128 MiB")
+      Regular(_) | External(_) => {
+        let size = payload_size(e.content)
+        guard size >= 0 &&
+          size.to_uint64() <= max_data &&
+          total_data <= max_data - size.to_uint64() else {
+          raise Limit("build payload budget")
         }
-        total_data += b.length()
+        if e.content is External(_) {
+          guard read is Some(_) else {
+            raise Invalid(0, "External entries require build_to")
+          }
+        }
+        total_data += size.to_uint64()
       }
       Symbolic(b) => {
         guard b.length() > 0 &&
@@ -247,8 +242,8 @@ pub fn build_image(
       content: input.content,
       parent: 0,
       children: [],
-      raw_inode: 0,
-      raw_dir: 0,
+      reference: 0UL,
+      dir_reference: 0UL,
       dir_size: 0,
       data_start: 0,
       blocks: [],
@@ -327,7 +322,7 @@ pub fn build_image(
     if attr.xattrs.length() > 0 {
       guard attr.xattrs.length() <= 65536 else { raise Limit("xattr count") }
       node.xattr = (xattr_ids.length() / 16).reinterpret_as_uint()
-      put64(xattr_ids, metadata_ref(xattr_data.length()))
+      put64(xattr_ids, xattr_data.length().to_uint64())
       put32(xattr_ids, attr.xattrs.length().reinterpret_as_uint())
       let sorted = attr.xattrs.copy()
       sorted.sort_by((a, b) => a.name.lexical_compare(b.name))
@@ -367,35 +362,45 @@ pub fn build_image(
     }
   }
   guard ids.length() <= 65535 else { raise Limit("UID/GID table") }
-  let output : Array[Byte] = Array::make(96, 0)
+  output.append(Bytes::make(96, 0))
   // LZ4 SquashFS requires a version/options metadata block.
   if compression == 5 {
-    append_bytes(output, pack_metadata([1, 0, 0, 0, 0, 0, 0, 0]))
+    output.append(pack_metadata([1, 0, 0, 0, 0, 0, 0, 0]))
   }
-  let fragments_data : Array[Bytes] = []
+  let fragment_records : Array[Byte] = []
   let mut tail : Array[Byte] = []
-  let mut inode_size = 0
   for i in unique {
     let node = nodes[i]
-    node.raw_inode = inode_size
     match node.content {
-      Folder => inode_size += 40
-      Symbolic(b) => inode_size += 28 + b.length()
-      BlockDevice(_) | CharDevice(_) => inode_size += 28
-      Fifo | Socket => inode_size += 24
+      Folder | Symbolic(_) | BlockDevice(_) | CharDevice(_) | Fifo | Socket =>
+        ()
       Hardlink(_) => raise Invalid(0, "unresolved link")
-      Regular(b) => {
+      Regular(_) | External(_) => {
+        let length = payload_size(node.content)
         node.data_start = output.length()
         let mut at = 0
-        while at < b.length() {
-          let size = Int::min(block_size, b.length() - at)
-          let chunk = region(b, at, size)
+        while at < length {
+          let size = Int::min(block_size, length - at)
+          let chunk = match node.content {
+            Regular(b) => region(b, at, size)
+            External(_) =>
+              match read {
+                Some(read) => read(node.path, at, size)
+                None => raise Invalid(at, "missing source reader")
+              }
+            _ => raise Invalid(at, "not a regular payload")
+          }
+          guard chunk.length() == size else {
+            raise Invalid(at, "source returned a short block")
+          }
           if fragments && size < block_size {
             if tail.length() + size > block_size {
-              fragments_data.push(Bytes::from_array(tail))
+              flush_fragment(
+                output, tail, fragment_records, compression, encode,
+              )
               tail = []
             }
-            node.fragment = fragments_data.length().reinterpret_as_uint()
+            node.fragment = (fragment_records.length() / 16).reinterpret_as_uint()
             node.fragment_offset = tail.length()
             append_bytes(tail, chunk)
           } else if chunk.iter().all(c => c == 0) {
@@ -406,30 +411,29 @@ pub fn build_image(
           }
           at += size
         }
-        inode_size += 56 + node.blocks.length() * 4
       }
     }
   }
-  if tail.length() > 0 {
-    fragments_data.push(Bytes::from_array(tail))
+  flush_fragment(output, tail, fragment_records, compression, encode)
+  let fragment_count = fragment_records.length() / 16
+  let directory_stream = metadata_writer(compression, meta_encode)
+  let inode_stream = metadata_writer(compression, meta_encode)
+  let emission : Array[Int] = unique.filter(i => !(nodes[i].content is Folder))
+  for j in 0..<unique.length() {
+    let i = unique[unique.length() - 1 - j]
+    if nodes[i].content is Folder {
+      emission.push(i)
+    }
   }
-  let fragment_records : Array[Byte] = []
-  for data in fragments_data {
-    let start = output.length()
-    let descriptor = store_block(output, data, compression, encode)
-    put64(fragment_records, start.to_uint64())
-    put32(fragment_records, descriptor)
-    put32(fragment_records, 0U)
-  }
-  let directories : Array[Byte] = []
-  for i in unique {
+  for i in emission {
     let node = nodes[i]
     if node.content is Folder {
-      node.raw_dir = directories.length()
+      let directories : Array[Byte] = []
+      node.dir_reference = directory_stream.position()
       for child_index in node.children {
         let entry = nodes[child_index]
         let child = nodes[entry.target]
-        let reference = metadata_ref(child.raw_inode)
+        let reference = child.reference
         put32(directories, 0U)
         put32(directories, (reference >> 16).to_uint())
         put32(directories, child.number.reinterpret_as_uint())
@@ -439,15 +443,12 @@ pub fn build_image(
         put16(directories, entry.name.length() - 1)
         append_bytes(directories, entry.name)
       }
-      node.dir_size = directories.length() - node.raw_dir
+      node.dir_size = directories.length()
+      directory_stream.append(directories)
     }
-  }
-  let inodes : Array[Byte] = []
-  let exports : Array[Byte] = []
-  for i in unique {
-    let node = nodes[i]
+    let inodes : Array[Byte] = []
+    node.reference = inode_stream.position()
     let attr = attributes.get(node.path).unwrap_or(default_attr)
-    put64(exports, metadata_ref(node.raw_inode))
     put16(inodes, build_kind(node.content) + 7)
     put16(inodes, node.mode)
     put16(inodes, id_map[attr.uid])
@@ -459,7 +460,7 @@ pub fn build_image(
         let child_dirs = node.children
           .filter(j => nodes[j].content is Folder)
           .length()
-        let reference = metadata_ref(node.raw_dir)
+        let reference = node.dir_reference
         put32(inodes, (2 + child_dirs).reinterpret_as_uint())
         put32(inodes, (node.dir_size + 3).reinterpret_as_uint())
         put32(inodes, (reference >> 16).to_uint())
@@ -471,9 +472,9 @@ pub fn build_image(
         put16(inodes, (reference & 0xffffUL).to_int())
         put32(inodes, node.xattr)
       }
-      Regular(b) => {
+      Regular(_) | External(_) => {
         put64(inodes, node.data_start.to_uint64())
-        put64(inodes, b.length().to_uint64())
+        put64(inodes, payload_size(node.content).to_uint64())
         put64(inodes, node.sparse.to_uint64())
         put32(inodes, node.links.reinterpret_as_uint())
         put32(inodes, node.fragment)
@@ -500,18 +501,25 @@ pub fn build_image(
       }
       Hardlink(_) => raise Invalid(0, "unresolved link")
     }
+    inode_stream.append(inodes)
+  }
+  inode_stream.flush()
+  directory_stream.flush()
+  let exports : Array[Byte] = []
+  for i in unique {
+    put64(exports, nodes[i].reference)
   }
   let inode_table = output.length()
-  append_bytes(output, pack_metadata(inodes))
+  output.append(Bytes::from_array(inode_stream.stored))
   let directory_table = output.length()
-  append_bytes(output, pack_metadata(directories))
-  let fragment_table = if fragments_data.length() > 0 {
-    write_index(output, fragment_records).to_uint64()
+  output.append(Bytes::from_array(directory_stream.stored))
+  let fragment_table = if fragment_count > 0 {
+    write_compressed_index(output, fragment_records, compression, meta_encode).to_uint64()
   } else {
     0xffffffffffffffffUL
   }
   let export_table = if exportable {
-    write_index(output, exports).to_uint64()
+    write_compressed_index(output, exports, compression, meta_encode).to_uint64()
   } else {
     0xffffffffffffffffUL
   }
@@ -519,18 +527,30 @@ pub fn build_image(
   for id in ids {
     put32(raw_ids, id)
   }
-  let id_table = write_index(output, raw_ids)
+  let id_table = write_compressed_index(
+    output, raw_ids, compression, meta_encode,
+  )
   let xattr_table = if xattr_ids.length() > 0 {
+    let values = compressed_metadata(xattr_data, compression, meta_encode)
+    let raw_xattr_ids = Bytes::from_array(xattr_ids)
+    for i in 0..<(xattr_ids.length() / 16) {
+      let raw = index(u64(raw_xattr_ids, i * 16), i * 16)
+      let reference = values.mapped_reference(raw)
+      for j in 0..<8 {
+        xattr_ids[i * 16 + j] = ((reference >> (j * 8)) & 255UL).to_byte()
+      }
+    }
+    let records = compressed_metadata(xattr_ids, compression, meta_encode)
     let start = output.length()
-    append_bytes(output, pack_metadata(xattr_data))
+    output.append(Bytes::from_array(values.stored))
     let id_start = output.length()
-    append_bytes(output, pack_metadata(xattr_ids))
+    output.append(Bytes::from_array(records.stored))
     let table = output.length()
-    put64(output, start.to_uint64())
-    put32(output, (xattr_ids.length() / 16).reinterpret_as_uint())
-    put32(output, 0U)
-    for i in 0..<((xattr_ids.length() + 8191) / 8192) {
-      put64(output, (id_start + i * 8194).to_uint64())
+    output.uint64(start.to_uint64())
+    output.uint((xattr_ids.length() / 16).reinterpret_as_uint())
+    output.uint(0U)
+    for offset in records.starts {
+      output.uint64((id_start + offset).to_uint64())
     }
     table.to_uint64()
   } else {
@@ -541,7 +561,7 @@ pub fn build_image(
   put32(header, unique.length().reinterpret_as_uint())
   put32(header, created)
   put32(header, block_size.reinterpret_as_uint())
-  put32(header, fragments_data.length().reinterpret_as_uint())
+  put32(header, fragment_count.reinterpret_as_uint())
   put16(header, compression)
   let mut log = 0
   let mut shifted = block_size
@@ -550,7 +570,7 @@ pub fn build_image(
     shifted = shifted >> 1
   }
   put16(header, log)
-  let flags = 0x901 |
+  let flags = (if meta_encode is None { 0x901 } else { 0 }) |
     (if encode is None { 0xA } else { 0 }) |
     (if !fragments { 0x10 } else { 0x20 }) |
     (if exportable { 0x80 } else { 0 }) |
@@ -560,7 +580,7 @@ pub fn build_image(
   put16(header, ids.length())
   put16(header, 4)
   put16(header, 0)
-  put64(header, metadata_ref(nodes[0].raw_inode))
+  put64(header, nodes[0].reference)
   put64(header, output.length().to_uint64())
   put64(header, id_table.to_uint64())
   put64(header, xattr_table)
@@ -568,8 +588,7 @@ pub fn build_image(
   put64(header, directory_table.to_uint64())
   put64(header, fragment_table)
   put64(header, export_table)
-  for i in 0..<96 {
-    output[i] = header[i]
-  }
-  Bytes::from_array(output)
+  let bytes = Bytes::from_array(header)
+  (output.write)(0, bytes)
+  parse_superblock(bytes, output.length())
 }

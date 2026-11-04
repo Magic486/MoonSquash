@@ -6,7 +6,9 @@ import {
 }
 
 // Values
-pub fn build_image(Array[BuildEntry], block_size? : Int, created? : UInt, attributes? : Map[String, BuildMetadata], compression? : Int, encode? : ((Int, Bytes) -> Bytes raise SquashError)?, fragments? : Bool, exportable? : Bool) -> Bytes raise SquashError
+pub fn build_image(Array[BuildEntry], block_size? : Int, created? : UInt, attributes? : Map[String, BuildMetadata], compression? : Int, encode? : ((Int, Bytes) -> Bytes raise SquashError)?, fragments? : Bool, exportable? : Bool, metadata_compression? : Bool) -> Bytes raise SquashError
+
+pub fn build_to(Array[BuildEntry], (Int, Bytes) -> Unit raise SquashError, (String, Int, Int) -> Bytes raise SquashError, block_size? : Int, created? : UInt, attributes? : Map[String, BuildMetadata], compression? : Int, encode? : ((Int, Bytes) -> Bytes raise SquashError)?, fragments? : Bool, exportable? : Bool, metadata_compression? : Bool, max_data? : UInt64) -> Superblock raise SquashError
 
 pub fn diff_images(Image, Image) -> Array[Difference] raise SquashError
 
@@ -29,6 +31,7 @@ pub(all) suberror SquashError {
 pub(all) enum BuildContent {
   Folder
   Regular(Bytes)
+  External(Int)
   Symbolic(Bytes)
   Hardlink(String)
   BlockDevice(UInt)
@@ -78,6 +81,7 @@ pub struct Image {
   data_cache : Map[String, Bytes]
   offsets : Map[UInt64, Array[Int]]
 }
+pub fn Image::compression_options(Self) -> Bytes? raise SquashError
 pub fn Image::entries(Self, Inode) -> Array[DirEntry] raise SquashError
 pub fn Image::export_inode(Self, Int) -> Inode raise SquashError
 pub fn Image::header(Self) -> Superblock
@@ -87,7 +91,7 @@ pub fn Image::read_file(Self, Inode, max_bytes? : Int) -> Bytes raise SquashErro
 pub fn Image::read_range(Self, Inode, Int, Int) -> Bytes raise SquashError
 pub fn Image::root(Self) -> Inode raise SquashError
 pub fn Image::tree(Self, max_entries? : Int) -> Array[TreeEntry] raise SquashError
-pub fn Image::verify(Self) -> VerifyReport raise SquashError
+pub fn Image::verify(Self, max_bytes? : UInt64) -> VerifyReport raise SquashError
 pub fn Image::xattrs(Self, Inode) -> Array[Xattr] raise SquashError
 
 pub(all) struct Inode {

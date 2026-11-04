@@ -154,13 +154,37 @@ fn Image::validate_layout(
       8 => {
         let b = cursor.take(24)
         let count = u16(b, 16)
+        let dir_size = index(u32(b, 4).to_uint64(), cursor.block)
+        let mut previous_index = -1
+        let mut previous_name : Bytes? = None
         for _ in 0..<count {
           let idx = cursor.take(12)
+          let logical = index(u32(idx, 0).to_uint64(), cursor.block)
+          let relative = index(u32(idx, 4).to_uint64(), cursor.block)
+          guard logical > previous_index &&
+            logical < dir_size - 3 &&
+            relative < directory_end - h.directory_table &&
+            dir_blocks.contains(h.directory_table + relative) else {
+            raise Invalid(
+              cursor.block,
+              "invalid directory index offset or block",
+            )
+          }
           let name_size = index(u32(idx, 8).to_uint64(), cursor.block)
           guard name_size < 256 else {
             raise Invalid(cursor.block, "directory index name length")
           }
-          ignore(cursor.take(name_size + 1))
+          let name = cursor.take(name_size + 1)
+          guard !name.iter().any(c => c == 0 || c == b'/') else {
+            raise Invalid(cursor.block, "directory index name")
+          }
+          if previous_name is Some(before) {
+            guard before.lexical_compare(name) < 0 else {
+              raise Invalid(cursor.block, "directory index ordering")
+            }
+          }
+          previous_index = logical
+          previous_name = Some(name)
         }
       }
       2 | 9 => {

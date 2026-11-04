@@ -35,7 +35,14 @@ jobs:
           python3 scripts/linux_oracle.py scripts/moonsquash.cjs
           python3 scripts/full_oracle.py scripts/moonsquash.cjs
           python3 scripts/host_regressions.py scripts/moonsquash.cjs
+          python3 scripts/review_spec_cases.py scripts/moonsquash.cjs
+          python3 scripts/review_image_cases.py scripts/moonsquash.cjs
+          python3 scripts/scale_oracle.py scripts/moonsquash.cjs scripts/host.py
+      - name: Published distribution image
+        run: |
+          curl --fail --location --retry 2 https://downloads.openwrt.org/releases/24.10.0/targets/x86/64/openwrt-24.10.0-x86-64-generic-squashfs-rootfs.img.gz -o "$RUNNER_TEMP/openwrt-rootfs.img.gz"
+          python3 scripts/distribution_oracle.py scripts/moonsquash.cjs "$RUNNER_TEMP/openwrt-rootfs.img.gz"
       - name: Actual archive consumer
         run: |
           moon package
-          python3 scripts/package_consumer.py _build/publish/local-moonsquash-0.2.0.zip
+          python3 scripts/package_consumer.py _build/publish/local-moonsquash-0.3.0.zip

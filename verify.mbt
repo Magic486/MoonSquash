@@ -12,9 +12,13 @@ pub(all) struct VerifyReport {
 ///|
 /// Validate the reachable filesystem, IDs, fragments, export index and xattrs.
 /// Fails on the first inconsistency; decompression errors propagate to the caller.
-pub fn Image::verify(self : Image) -> VerifyReport raise SquashError {
+pub fn Image::verify(
+  self : Image,
+  max_bytes? : UInt64 = 4294967296UL,
+) -> VerifyReport raise SquashError {
   let tree = self.tree()
   self.validate_layout(tree)
+  self.validate_data_extents(tree)
   let unique : Map[Int, Inode] = Map([])
   let counts : Map[Int, Int] = Map([])
   let mut files = 0
@@ -75,6 +79,10 @@ pub fn Image::verify(self : Image) -> VerifyReport raise SquashError {
         }
       }
       File(_, size, frag, off, _) => {
+        guard size.to_uint64() <= max_bytes &&
+          bytes <= max_bytes - size.to_uint64() else {
+          raise Limit("verification decoded data budget")
+        }
         if frag != 0xffffffffU {
           guard size % self.superblock.block_size != 0 &&
             off < self.superblock.block_size else {

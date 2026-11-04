@@ -123,12 +123,13 @@ def scan(source, stage, compression):
             raise ValueError("pack tree limit")
         image_path.encode('utf-8')  # reject undecodable host names explicitly
         st = path.lstat()
-        e = {"path":image_path,"mode":stat.S_IMODE(st.st_mode),"uid":st.st_uid,"gid":st.st_gid,
-             "mtime":max(0,min(4294967295,int(st.st_mtime)))}
+        seconds=int(st.st_mtime)
+        if st.st_mtime < 0 or not 0 <= seconds <= 4294967295:
+            raise ValueError("mtime cannot be represented by SquashFS 4")
+        e = {"path":image_path,"mode":stat.S_IMODE(st.st_mode),"uid":st.st_uid,"gid":st.st_gid,"mtime":seconds}
         identity = (st.st_dev,st.st_ino)
         if not stat.S_ISDIR(st.st_mode) and identity in links:
-            e["hardlink"] = links[identity]
-            entries.append(e)
+            entries.append({"path":image_path,"hardlink":links[identity]})
             return
         if stat.S_ISDIR(st.st_mode): e["directory"] = True
         elif stat.S_ISREG(st.st_mode): e["source"] = str(path)

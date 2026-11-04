@@ -19,10 +19,12 @@ fn build_command(spec : String, output : String) -> Unit raise {
     fail("cannot read build specification")
   }
   let json = @json.parse(@utf8.decode(bytes))
+  validate_spec(json)
   guard json is { "entries": Array(items), .. } else {
     fail("build specification needs entries array")
   }
   let entries : Array[@squash.BuildEntry] = []
+  let sources : Map[String, (String, Int)] = Map([])
   let attributes : Map[String, @squash.BuildMetadata] = Map([])
   let created = uint_field(json, "created", 0U)
   for item in items {
@@ -31,10 +33,12 @@ fn build_command(spec : String, output : String) -> Unit raise {
     }
     let content = match item {
       { "source": String(source), .. } => {
-        guard read_bytes(source) is Some(data) else {
-          fail("cannot read source: \{source}")
-        }
-        @squash.Regular(data)
+        let fd = open_fd(source)
+        guard fd >= 0 else { fail("cannot open source: \{source}") }
+        let length = fd_size(fd)
+        close_fd(fd)
+        sources[path] = (source, length)
+        @squash.External(length)
       }
       { "symlink": String(target), .. } =>
         @squash.Symbolic(@utf8.encode(target))
@@ -104,8 +108,36 @@ fn build_command(spec : String, output : String) -> Unit raise {
   }
   let bs = uint_field(json, "block_size", 131072U)
   guard bs <= 1048576U else { fail("block size too large") }
-  let result = @squash.build_image(
+  guard prepare_stage(output) is Some(stage) else {
+    fail("output must be a new path in an existing parent")
+  }
+  defer clean_stage(stage)
+  let temporary = stage + "/image.sqfs"
+  let fd = new_output(temporary)
+  guard fd >= 0 else { fail("cannot create image staging file") }
+  defer close_fd(fd)
+  let result = @squash.build_to(
     entries,
+    (at, data) => {
+      guard output_write(fd, at, data) else {
+        raise @squash.Invalid(at, "output write failed")
+      }
+    },
+    (path, at, size) => {
+      let (source, length) = sources[path]
+      let input = open_fd(source)
+      guard input >= 0 else {
+        raise @squash.Invalid(at, "cannot reopen source")
+      }
+      defer close_fd(input)
+      guard fd_size(input) == length else {
+        raise @squash.Invalid(at, "source size changed while building")
+      }
+      guard read_at(input, at, size) is Some(data) else {
+        raise @squash.Invalid(at, "source read failed")
+      }
+      data
+    },
     attributes~,
     created~,
     block_size=bs.reinterpret_as_int(),
@@ -113,9 +145,10 @@ fn build_command(spec : String, output : String) -> Unit raise {
     encode=if compression == 0 { None } else { Some(encode) },
     fragments=!(json is { "fragments": False, .. }),
     exportable=!(json is { "exportable": False, .. }),
+    metadata_compression=!(json is { "metadata_compression": False, .. }),
   )
-  guard write_new(output, result) else {
+  guard publish_output(fd, temporary, output) else {
     fail("cannot create new output; existing paths are not overwritten")
   }
-  println("built \{result.length()} bytes")
+  println("built \{result.bytes_used} bytes")
 }
