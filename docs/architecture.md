@@ -14,13 +14,13 @@ File descriptors encode compressed/raw/sparse blocks; tails refer to shared inde
 
 Canonical paths are byte-sorted, implicit parents inserted, hard-link chains resolved and unique inodes numbered. Owners are interned and xattr IDs allocated. Cycles, missing targets and directory hard links are errors.
 
-The data pass compresses only when smaller than raw, emits sparse blocks, and packs tails. A layout pass fixes inode and directory references. Metadata is written in raw blocks to keep references stable without a compression/layout feedback loop. This is a valid profile, with larger metadata as the explicit tradeoff. The builder then emits fragment/export/ID/xattr tables and the superblock.
+The data pass reads at most one file block at a time, compresses only when smaller than raw, emits sparse blocks, and flushes packed tails directly to the sink. `build_to` writes sequentially except for the final 96-byte superblock patch. CLI output stays in a private temporary file until successful exclusive publication. A layout pass fixes inode and directory references. Non-directory inodes are emitted first, then directories in child-before-parent order. Append-only metadata writers assign stable references as blocks are flushed; directory records can therefore refer to already-fixed child inode addresses, and parent inode records refer to completed directory streams. All metadata classes can be compressed, with raw fallback when compression expands a block. The builder then emits fragment/export/ID/xattr tables and the superblock.
 
 Xattr output is inline; input also supports official out-of-line sharing. Special files are disk records, not host devices. Hard links share records/link counts. Independently supplied equal files stay independent.
 
 ## Validation and diff
 
-Verification checks table extents/continuity, indexed lengths, metadata boundaries, the complete inode stream, reference starts/reachability, directory parent/type/link counts, name ordering, file decoding, fragments, IDs, xattrs and export mappings. Errors carry a reason/offset; no repair/authenticity claim is made.
+Verification checks table extents/continuity, indexed lengths, metadata boundaries, the complete inode stream, reference starts/reachability, directory parent/type/link counts, name ordering, file decoding, fragments, IDs, xattrs and export mappings, directory index offsets, compressor options and non-partial-overlap of data extents. Errors carry a reason/offset; no repair/authenticity claim is made.
 
 Diff compares paths, bounded file ranges, metadata, attributes and link groups. On-disk inode numbers and physical compression/layout are not filesystem changes.
 
