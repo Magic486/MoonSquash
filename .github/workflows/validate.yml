@@ -20,7 +20,9 @@ jobs:
         run: |
           moon version --all
           mksquashfs -version
-          moon fmt --check
+          # Current formatter migrates Int to Int32; retain compatibility with
+          # the documented September compiler and report this drift explicitly.
+          moon fmt --warn
           moon check --target js
           moon test --target js
           moon test --target wasm-gc
