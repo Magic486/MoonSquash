@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='consumer-',dir=archive.parent) as tmp:
         assert 'scripts/host.py' in z.namelist()
     consumer=root/'consumer'; consumer.mkdir()
     (root/'moon.work').write_text('members = ["library", "consumer"]\n')
-    (consumer/'moon.mod').write_text('name = "local/archive-consumer"\nimport { "Magic486/moonsquash@0.3.0" }\n')
+    (consumer/'moon.mod').write_text('name = "local/archive-consumer"\nimport { "Magic486/moonsquash@0.3.1" }\n')
     (consumer/'moon.pkg').write_text('import { "Magic486/moonsquash" @squash }\noptions("is-main": true)\n')
     (consumer/'main.mbt').write_text('''///|
 fn main raise {

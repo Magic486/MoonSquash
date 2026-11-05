@@ -1,6 +1,6 @@
 # MoonSquash：MoonBit SquashFS 4 文件系统镜像工具库
 
-版本 0.3.0；2026-11-05；十一月参赛本地草稿。GitHub：Magic486/MoonSquash；模块 Magic486/moonsquash@0.3.0，发布状态见 docs/release.md；尚未报名或取得官方审核结论。
+版本 0.3.1；2026-11-05；十一月参赛本地草稿。GitHub：Magic486/MoonSquash；模块 Magic486/moonsquash@0.3.1，发布状态见 docs/release.md；尚未报名或取得官方审核结论。
 
 面向固件分析、只读 Linux 系统和离线制品检查，提供镜像读取、构建、目录打包、安全提取、结构校验和语义差异分析。Mooncakes 与 GitHub 公开检索未发现直接同类 MoonBit 实现；不宣称全球首创。
 

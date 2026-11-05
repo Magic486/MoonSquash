@@ -1,6 +1,6 @@
 # 本地验收准备复核
 
-日期：2026-11-05；项目：MoonSquash 0.3.0；拟参赛月份：十一月。用户已指定账号 Magic486，仓库 https://github.com/Magic486/MoonSquash，模块 Magic486/moonsquash；发布状态见 release.md。
+日期：2026-11-05；项目：MoonSquash 0.3.1；拟参赛月份：十一月。用户已指定账号 Magic486，仓库 https://github.com/Magic486/MoonSquash，模块 Magic486/moonsquash；发布状态见 release.md。
 
 **状态：README 明示范围内的 0.3 本地候选版本已实现并验证；公开发布验证见 release.md；正式报名和官方审核均未执行。** 技术自查不代表主办方通过。严格复查的缺陷、修复与剩余风险见 [strict-review.md](strict-review.md)。
 

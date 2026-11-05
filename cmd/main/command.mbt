@@ -70,11 +70,11 @@ fn run() -> Unit raise {
       let h = image.header()
       println(
         Json::object({
-          "inodes": h.inodes.to_json(),
-          "block_size": h.block_size.to_json(),
-          "fragments": h.fragments.to_json(),
-          "compression": h.compression.to_json(),
-          "bytes_used": h.bytes_used.to_json(),
+          "inodes": @json.to_json(h.inodes),
+          "block_size": @json.to_json(h.block_size),
+          "fragments": @json.to_json(h.fragments),
+          "compression": @json.to_json(h.compression),
+          "bytes_used": @json.to_json(h.bytes_used),
         }).stringify(),
       )
     }
@@ -88,15 +88,15 @@ fn run() -> Unit raise {
             _ => 0
           }
           Json::object({
-            "path": e.path.to_json(),
-            "inode": e.inode.number.to_json(),
-            "kind": e.inode.kind.to_json(),
-            "mode": e.inode.mode.to_json(),
-            "uid": e.inode.uid.to_json(),
-            "gid": e.inode.gid.to_json(),
-            "mtime": e.inode.mtime.to_json(),
-            "links": e.inode.links.to_json(),
-            "size": size.to_json(),
+            "path": @json.to_json(e.path),
+            "inode": @json.to_json(e.inode.number),
+            "kind": @json.to_json(e.inode.kind),
+            "mode": @json.to_json(e.inode.mode),
+            "uid": @json.to_json(e.inode.uid),
+            "gid": @json.to_json(e.inode.gid),
+            "mtime": @json.to_json(e.inode.mtime),
+            "links": @json.to_json(e.inode.links),
+            "size": @json.to_json(size),
           })
         })
       println(Json::array(result).stringify())
@@ -123,18 +123,19 @@ fn run() -> Unit raise {
       let r = image.verify()
       println(
         Json::object({
-          "entries": r.entries.to_json(),
-          "inodes": r.inodes.to_json(),
-          "files_read": image
-          .tree()
-          .filter(e => e.inode.content is File(_, _, _, _, _))
-          .length()
-          .to_json(),
-          "unique_files": r.files.to_json(),
-          "bytes_checked": r.bytes_checked.to_json(),
-          "xattrs": r.xattrs.to_json(),
-          "fragments": r.fragments.to_json(),
-          "export_checked": r.export_checked.to_json(),
+          "entries": @json.to_json(r.entries),
+          "inodes": @json.to_json(r.inodes),
+          "files_read": @json.to_json(
+            image
+            .tree()
+            .filter(e => e.inode.content is File(_, _, _, _, _))
+            .length(),
+          ),
+          "unique_files": @json.to_json(r.files),
+          "bytes_checked": @json.to_json(r.bytes_checked),
+          "xattrs": @json.to_json(r.xattrs),
+          "fragments": @json.to_json(r.fragments),
+          "export_checked": @json.to_json(r.export_checked),
         }).stringify(),
       )
     }
@@ -148,8 +149,8 @@ fn run() -> Unit raise {
         Json::array(
           changes.map(d => {
             Json::object({
-              "path": d.path.to_json(),
-              "changes": d.changes.to_json(),
+              "path": @json.to_json(d.path),
+              "changes": @json.to_json(d.changes),
             })
           }),
         ).stringify(),

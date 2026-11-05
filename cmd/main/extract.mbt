@@ -3,8 +3,8 @@ fn attrs_json(attrs : Array[@squash.Xattr]) -> Json {
   Json::array(
     attrs.map(a => {
       Json::object({
-        "name": a.name.iter().map(b => b.to_int()).to_array().to_json(),
-        "value": a.value.iter().map(b => b.to_int()).to_array().to_json(),
+        "name": @json.to_json(a.name.iter().map(b => b.to_int()).to_array()),
+        "value": @json.to_json(a.value.iter().map(b => b.to_int()).to_array()),
       })
     }),
   )
@@ -47,13 +47,13 @@ fn extract_command(image : @squash.Image, destination : String) -> Unit raise {
     let node = e.inode
     let kind = if node.kind > 7 { node.kind - 7 } else { node.kind }
     let values : Map[String, Json] = {
-      "path": e.path.to_json(),
-      "inode": node.number.to_json(),
-      "kind": kind.to_json(),
-      "mode": node.mode.to_json(),
-      "uid": node.uid.to_json(),
-      "gid": node.gid.to_json(),
-      "mtime": node.mtime.to_json(),
+      "path": @json.to_json(e.path),
+      "inode": @json.to_json(node.number),
+      "kind": @json.to_json(kind),
+      "mode": @json.to_json(node.mode),
+      "uid": @json.to_json(node.uid),
+      "gid": @json.to_json(node.gid),
+      "mtime": @json.to_json(node.mtime),
       "xattrs": attrs_json(image.xattrs(node)),
     }
     match node.content {
@@ -77,12 +77,10 @@ fn extract_command(image : @squash.Image, destination : String) -> Unit raise {
           }
         }
       Symlink(target) =>
-        values["target"] = target
-          .iter()
-          .map(b => b.to_int())
-          .to_array()
-          .to_json()
-      Device(number) => values["device"] = number.to_json()
+        values["target"] = @json.to_json(
+          target.iter().map(b => b.to_int()).to_array(),
+        )
+      Device(number) => values["device"] = @json.to_json(number)
       _ => ()
     }
     entries.push(Json::object(values))
