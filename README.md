@@ -1,6 +1,6 @@
 # MoonSquash
 
-**SquashFS 4 filesystem image library and CLI implemented in MoonBit.** Version 0.3.0 is a local release candidate for the November 2026 hackathon. It reads, builds, packs, extracts, verifies and compares images without mounting them or running official image tools at runtime.
+**SquashFS 4 filesystem image library and CLI implemented in MoonBit.** Version 0.3.0 is prepared for the November 2026 hackathon. It reads, builds, packs, extracts, verifies and compares images without mounting them or running official image tools at runtime.
 
 Use it to inspect firmware and read-only Linux distributions, build reproducible application images, and explain changes between images. This is not a claim of complete `squashfs-tools` option parity or official contest acceptance.
 
@@ -68,10 +68,10 @@ See [public API](pkg.generated.mbti) and [runnable example](examples/basic/main.
 
 ```sh
 moon package
-python3 scripts/package_consumer.py _build/publish/local-moonsquash-0.3.0.zip
+python3 scripts/package_consumer.py _build/publish/Magic486-moonsquash-0.3.0.zip
 ```
 
-`local/moonsquash` is a development namespace, not a public registry release. For local use, extract the archive and add it and your consumer to a `moon.work` workspace. The consumer script reproduces this from the actual ZIP.
+Repository: [Magic486/MoonSquash](https://github.com/Magic486/MoonSquash). Package identity: `Magic486/moonsquash@0.3.0`; registry publication/installation status is recorded in [release notes](docs/release.md). The archive consumer extracts the actual ZIP into a separate workspace.
 
 ## Independent validation
 

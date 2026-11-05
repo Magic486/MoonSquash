@@ -45,4 +45,4 @@ jobs:
       - name: Actual archive consumer
         run: |
           moon package
-          python3 scripts/package_consumer.py _build/publish/local-moonsquash-0.3.0.zip
+          python3 scripts/package_consumer.py _build/publish/Magic486-moonsquash-0.3.0.zip

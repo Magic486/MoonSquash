@@ -9,13 +9,13 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "local/moonsquash"
+name = "Magic486/moonsquash"
 
 version = "0.3.0"
 
 readme = "README.md"
 
-repository = ""
+repository = "https://github.com/Magic486/MoonSquash"
 
 license = "Apache-2.0"
 

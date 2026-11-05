@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "local/moonsquash"
+package "Magic486/moonsquash"
 
 import {
   "moonbitlang/core/debug",

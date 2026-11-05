@@ -7,4 +7,4 @@
 - Workflow: directory packing, safe extraction with omission reporting, semantic diff and structural verification.
 - Delivery: API/demo, independent six-codec Linux oracle, 21 JS/Wasm-GC tests, archive consumer, 201 MiB scale checks and local submission materials. Evidence is in `test-evidence/review-0.3.md`; findings and remaining contest risks are in `strict-review.md`.
 
-Intentional limits are in README. No remote publication, registry install, registration or official acceptance is claimed. `local/moonsquash` is a placeholder namespace.
+Intentional limits are in README. GitHub/Mooncakes identity is Magic486; publication and registry-install checks are recorded in `release.md`. Registration and official acceptance are not claimed.
