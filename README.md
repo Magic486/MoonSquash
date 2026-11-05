@@ -71,7 +71,7 @@ moon package
 python3 scripts/package_consumer.py _build/publish/Magic486-moonsquash-0.3.0.zip
 ```
 
-Repository: [Magic486/MoonSquash](https://github.com/Magic486/MoonSquash). Package identity: `Magic486/moonsquash@0.3.0`; registry publication/installation status is recorded in [release notes](docs/release.md). The archive consumer extracts the actual ZIP into a separate workspace.
+Repository: [Magic486/MoonSquash](https://github.com/Magic486/MoonSquash). Package identity: `Magic486/moonsquash@0.3.0`; published on [Mooncakes](https://mooncakes.io/docs/Magic486/moonsquash@0.3.0). Installation validation is recorded in [release notes](docs/release.md). The archive consumer extracts the actual ZIP into a separate workspace.
 
 ## Independent validation
 
@@ -103,7 +103,7 @@ That script checks the pinned published SHA-256 before processing; the image is 
 - Safe extraction preserves ordinary permissions, times, user xattrs, hard links and symlinks. It does not follow image symlinks, create device/FIFO/socket nodes, change ownership, or apply privileged modes/xattrs. JSON lists omitted operations. Outward/absolute symlinks may be preserved as links. An I/O failure may leave a partial new extraction directory.
 - Verification has a default 4 GiB decoded-data budget (configurable via the library API) and checks compressor options, directory indexes and data-area overlaps. It is structural/semantic within this profile; it is not cryptographic authenticity, kernel mount certification, exhaustive fuzz proof or repair. Legacy LZMA support targets image tools, not current kernels.
 
-Validated compilers: Windows moonc v0.10.13 / moon 20260915; Linux moonc v0.10.14 / moon 20260920. The latter reports a public derived-trait promotion deprecation; compilation/tests succeed. No native-backend claim is made.
+Validated compilers: Windows moonc v0.10.13 / moon 20260915; Linux moonc v0.10.14 / moon 20260920. The latter reports a public derived-trait promotion deprecation; compilation/tests succeed. Current CI uses the latest compiler and reports formatter migrations as warnings to retain September source compatibility. No native-backend claim is made.
 
 Apache-2.0. [Architecture](docs/architecture.md) · [demo](docs/demo.md) · [release status](docs/release.md) · [submission draft](submission-proposal.md).
 
