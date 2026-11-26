@@ -14,7 +14,7 @@
 
 ## Environments and actual results
 
-Windows: moon 20260915 / moonc v0.10.13. Linux: moon 20260920 / moonc v0.10.14, Node 22.22.1, Python 3.14.4, squashfs-tools 4.7.5. Linux retains 13 documented derived-trait promotion warnings; checks are successful, not warning-free. Public latest-toolchain CI results belong to the release record.
+Windows: moon 20260915 / moonc v0.10.13. Linux: moon 20260920 / moonc v0.10.14, Node 22.22.1, Python 3.14.4, squashfs-tools 4.7.5. Linux retains 13 documented derived-trait promotion warnings; checks are successful, not warning-free. Public CI also passed with moon 20261119 / moonc v0.10.22; see the release record.
 
 | Check | Result |
 | --- | --- |
@@ -45,6 +45,10 @@ python3 scripts/package_consumer.py --registry 0.3.2
 ```
 
 `review_image_cases.py --baseline` prints unexpected acceptances instead of asserting; it is for comparison against old code, never the passing CI mode. Ordinary invocation requires all cases to be rejected.
+
+## Registry validation
+
+After publication, independent Windows and Linux consumers installed exactly Magic486/moonsquash@0.3.2 and passed representative API checks on JS and Wasm-GC. No local workspace substitution was used.
 
 ## Boundaries
 

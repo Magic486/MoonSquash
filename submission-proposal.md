@@ -2,7 +2,7 @@
 
 **1、项目名称** MoonSquash：基于 MoonBit 的 SquashFS 4 文件系统镜像读写与分析工具库。
 
-**2、项目简介** 面向固件开发与离线制品检查，提供 SquashFS 镜像读取、构建、打包、提取、校验与版本差异分析。当前版本 0.3.2，交付可复用 MoonBit API 和九个 CLI 命令。
+**2、项目简介** 面向固件开发与离线制品检查，提供 SquashFS 镜像读取、构建、打包、提取、校验与版本差异分析。已发布 0.3.2，交付可复用 MoonBit API 和九个 CLI 命令。
 
 **3、项目方向与通用性** 系统软件、文件系统与开发工具方向。基于通用 SquashFS 4 格式，适用于嵌入式根文件系统、只读应用镜像、归档检查与持续集成；库支持 JS/Wasm-GC，CLI 使用 JS，Linux 工作流已实测。
 
@@ -18,4 +18,4 @@
 
 **7、参考项目及许可证** 非移植项目。参考 [Linux SquashFS 格式文档](https://docs.kernel.org/filesystems/squashfs.html)和 [squashfs-tools](https://github.com/plougher/squashfs-tools) 的磁盘结构定义（相关参考文件为 GPL-2.0-or-later）；未复制或链接其 C 实现，mksquashfs/unsquashfs 仅用于独立验证。
 
-**8、GitHub 仓库及开发记录** 参赛仓库：[Magic486/MoonSquash](https://github.com/Magic486/MoonSquash)，保留不少于 10 个有效开发提交。0.3.2 已完成 Linux 服务器复验，修复稀疏统计、压缩数据与读取接口校验缺口；[本轮证据](https://github.com/Magic486/MoonSquash/blob/master/docs/test-evidence/review-0.3.2.md)、[CI 与发布状态](https://github.com/Magic486/MoonSquash/blob/master/docs/release.md)可核查。本材料不代表已获官方审核通过。
+**8、GitHub 仓库及开发记录** 参赛仓库：[Magic486/MoonSquash](https://github.com/Magic486/MoonSquash)，保留不少于 10 个有效开发提交。[Mooncakes 0.3.2](https://mooncakes.io/docs/Magic486/moonsquash@0.3.2) 已发布并通过独立安装验证；已完成 Linux 服务器复验，修复稀疏统计、压缩数据与读取接口校验缺口；[本轮证据](https://github.com/Magic486/MoonSquash/blob/master/docs/test-evidence/review-0.3.2.md)、[CI 与发布状态](https://github.com/Magic486/MoonSquash/blob/master/docs/release.md)可核查。本材料不代表已获官方审核通过。

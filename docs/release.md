@@ -4,7 +4,15 @@
 
 Server check/build, both backend test suites (24 each), six-codec independent oracles, host and invalid-input regressions, 201 MiB synthetic scale test, actual OpenWrt comparison and independent ZIP consumers have passed. See [evidence](test-evidence/review-0.3.2.md).
 
-Publication status at source freeze: GitHub push, its public CI, Mooncakes publication and exact registry consumer are pending; they must complete before the release is reported as published. The subsequent publication record will distinguish the source commit and documentation-only follow-up. No official registration or acceptance is claimed.
+## Published results (2026-11-26)
+
+- Source freeze and release tag: `475a9fd2b3a9cff30696d077e76e291f5d63a760`; [GitHub release v0.3.2](https://github.com/Magic486/MoonSquash/releases/tag/v0.3.2).
+- [Public source CI](https://github.com/Magic486/MoonSquash/actions/runs/45754713431) succeeded before publication, using moon 20261119 / moonc v0.10.22. It includes independent Linux oracles, the real OpenWrt image and archive consumption, in addition to 24 tests on each library backend.
+- [Mooncakes Magic486/moonsquash@0.3.2](https://mooncakes.io/docs/Magic486/moonsquash@0.3.2): account verified as Magic486; server returned `200 OK`. The actual archive has 64 files; private directories, caches and PDF output are excluded. Archive path/content checks found no private key or recognized GitHub credential patterns; this is not a claim of exhaustive secret detection.
+- Independent registry consumers on Windows and the authorized Linux server downloaded the exact 0.3.2 version without a local workspace override. Memory/streaming builds, ranges, xattrs, hardlinks, verification and semantic diff passed on JS and Wasm-GC in both environments.
+- The follow-up commit only updates publication documentation and the proposal; it does not rewrite the immutable ZIP or source tag. Default-branch CI remains visible in [Actions](https://github.com/Magic486/MoonSquash/actions/workflows/validate.yml).
+
+Technical fixes, server revalidation and authorized publication are complete. No contest form was submitted or official acceptance claimed.
 
 ## Historical 0.3.1 record
 
