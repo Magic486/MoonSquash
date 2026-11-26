@@ -1,3 +1,13 @@
+# Release 0.3.2
+
+2026-11-26. Target repository: Magic486/MoonSquash; package: Magic486/moonsquash@0.3.2. Public library API unchanged. This patch fixes compressed-stream trailing-data acceptance, inconsistent sparse accounting, source-header callback length handling and lookup identity checks.
+
+Server check/build, both backend test suites (24 each), six-codec independent oracles, host and invalid-input regressions, 201 MiB synthetic scale test, actual OpenWrt comparison and independent ZIP consumers have passed. See [evidence](test-evidence/review-0.3.2.md).
+
+Publication status at source freeze: GitHub push, its public CI, Mooncakes publication and exact registry consumer are pending; they must complete before the release is reported as published. The subsequent publication record will distinguish the source commit and documentation-only follow-up. No official registration or acceptance is claimed.
+
+## Historical 0.3.1 record
+
 # Release 0.3.1
 
 2026-11-05. The user selected GitHub/Mooncakes account `Magic486`. Repository: https://github.com/Magic486/MoonSquash; module: `Magic486/moonsquash@0.3.1`. The original local development history is preserved with its original authors and dates. Publication checks and registry installation results will be recorded below. Contest registration and acceptance remain separate.

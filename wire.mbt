@@ -131,7 +131,12 @@ pub fn open_source(
   read : (Int, Int) -> Bytes raise SquashError,
   decode? : (Int, Bytes, Int) -> Bytes raise SquashError = no_decompressor,
 ) -> Image raise SquashError {
-  let superblock = parse_superblock(read(0, 96), length)
+  guard length >= 96 else { raise Invalid(0, "source shorter than superblock") }
+  let header = read(0, 96)
+  guard header.length() == 96 else {
+    raise Invalid(0, "incorrect header read length")
+  }
+  let superblock = parse_superblock(header, length)
   {
     read,
     superblock,

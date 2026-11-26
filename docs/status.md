@@ -1,3 +1,9 @@
+# Current status
+
+2026-11-26: 0.3.2 addresses four validation/API consistency gaps. See [current acceptance review](acceptance-review.md), [test evidence](test-evidence/review-0.3.2.md) and [publication status](release.md).
+
+## Historical milestone
+
 # Development status
 
 2026-11-05: M1-M4 implemented for the documented 0.3 profile, superseding the initial read/write milestone.

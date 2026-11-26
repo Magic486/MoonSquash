@@ -6,7 +6,13 @@ extern "js" fn codec_host(
   limit : Int,
 ) -> Bytes? =
   #| (mode,id,data,limit) => { try {
-  #|   if (id === 1) { const z=require('node:zlib'); return new Uint8Array(mode==='encode' ? z.deflateSync(data,{level:9}) : z.inflateSync(data,{maxOutputLength:limit})); }
+  #|   if (id === 1) {
+  #|     const z=require('node:zlib');
+  #|     if(mode==='encode') return new Uint8Array(z.deflateSync(data,{level:9}));
+  #|     const result=z.inflateSync(data,{maxOutputLength:limit,info:true});
+  #|     if(result.engine.bytesWritten!==data.length) return undefined;
+  #|     return new Uint8Array(result.buffer);
+  #|   }
   #|   const helper=process.env.MOONSQUASH_CODEC; if (!helper) return undefined;
   #|   const r=require('node:child_process').spawnSync(process.env.PYTHON || 'python3',[helper,mode,String(id),String(limit)],{input:Buffer.from(data),maxBuffer:limit+65536,timeout:30000});
   #|   if(r.status!==0) { if(r.stderr) process.stderr.write(r.stderr); return undefined; }

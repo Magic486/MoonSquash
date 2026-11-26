@@ -48,6 +48,17 @@ with tempfile.TemporaryDirectory(prefix='image-review-',dir=Path(cli).parent) as
     header=bytes(data[i] for i in locations)
     assert struct.unpack_from('<H',header,first)[0]==9 and struct.unpack_from('<H',header,first+60)[0]==9
     start=struct.unpack_from('<Q',header,first+16)[0]
+    sparse=bytearray(data)
+    replace(sparse,locations[first+32:first+40],struct.pack('<Q',1))
+    cases['false-sparse-accounting']=sparse
+    # Keep all offsets unchanged: replace a raw 64-byte data extent with a
+    # shorter valid zlib stream followed by garbage, and mark it compressed.
+    import zlib
+    trailing=bytearray(data)
+    packed=zlib.compress(b'A'*64)
+    trailing[start:start+64]=packed+b'X'*(64-len(packed))
+    replace(trailing,locations[first+56:first+60],struct.pack('<I',64))
+    cases['gzip-trailing-garbage']=trailing
     replace(data,locations[first+76:first+84],struct.pack('<Q',start+1))
     cases['overlapping-data']=data
     spec.write_text(json.dumps({'compression':'lz4','entries':[{'path':'/a','source':str(datafile)}]}))

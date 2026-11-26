@@ -1,24 +1,39 @@
 """Test the actual moon package ZIP from a separate consumer workspace."""
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import zipfile
 
-archive=Path(sys.argv[1]).resolve()
-with tempfile.TemporaryDirectory(prefix='consumer-',dir=archive.parent) as tmp:
-    root=Path(tmp); library=root/'library'; library.mkdir()
-    with zipfile.ZipFile(archive) as z:
-        for name in z.namelist():
-            target=(library/name).resolve()
-            if not target.is_relative_to(library): raise ValueError('archive traversal')
-        z.extractall(library)
-        assert 'scripts/codec.py' in z.namelist()
-        assert 'scripts/host.py' in z.namelist()
+registry = len(sys.argv) == 3 and sys.argv[1] == '--registry'
+archive = None if registry else Path(sys.argv[1]).resolve()
+version = sys.argv[2] if registry else None
+if registry and not re.fullmatch(r'\d+\.\d+\.\d+', version):
+    raise ValueError('expected exact release version')
+with tempfile.TemporaryDirectory(prefix='consumer-', dir=None if registry else archive.parent) as tmp:
+    root=Path(tmp)
+    if not registry:
+        library=root/'library'; library.mkdir()
+        with zipfile.ZipFile(archive) as z:
+            for name in z.namelist():
+                if not (library/name).resolve().is_relative_to(library):
+                    raise ValueError('archive traversal')
+            z.extractall(library)
+            assert 'scripts/codec.py' in z.namelist()
+            assert 'scripts/host.py' in z.namelist()
+        version=re.search(r'^version\s*=\s*"([^"]+)"', (library/'moon.mod').read_text(), re.M)[1]
+        (root/'moon.work').write_text('members = ["library", "consumer"]\n')
     consumer=root/'consumer'; consumer.mkdir()
-    (root/'moon.work').write_text('members = ["library", "consumer"]\n')
-    (consumer/'moon.mod').write_text('name = "local/archive-consumer"\nimport { "Magic486/moonsquash@0.3.1" }\n')
+    (consumer/'moon.mod').write_text('name = "local/package-consumer"\n' +
+        ('' if registry else f'import {{ "Magic486/moonsquash@{version}" }}\n'))
+    if registry:
+        subprocess.run(['moon','add',f'Magic486/moonsquash@{version}'],cwd=consumer,check=True)
+        resolved=subprocess.check_output(['moon','tree'],cwd=consumer,text=True)
+        if f'Magic486/moonsquash@{version}' not in resolved:
+            raise ValueError('registry did not resolve the requested version')
+        print(resolved)
     (consumer/'moon.pkg').write_text('import { "Magic486/moonsquash" @squash }\noptions("is-main": true)\n')
     (consumer/'main.mbt').write_text('''///|
 fn main raise {
@@ -46,4 +61,4 @@ fn main raise {
         p=subprocess.run(['moon','run','.', '--target',target],cwd=consumer,capture_output=True,text=True)
         if p.returncode or 'archive consumer passed' not in p.stdout:
             raise RuntimeError(p.stdout+p.stderr)
-        print(json.dumps({'archive_consumer':target,'result':'passed'}))
+        print(json.dumps({'consumer':'registry' if registry else 'archive','version':version,'target':target,'result':'passed'}))

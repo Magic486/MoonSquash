@@ -191,16 +191,20 @@ pub fn Image::lookup(self : Image, path : String) -> Inode raise SquashError {
       raise Invalid(0, "path must be canonical")
     }
     let name = @utf8.encode(part)
-    let mut found : UInt64? = None
+    let mut found : DirEntry? = None
     for entry in self.entries(node) {
       if entry.name == name {
-        found = Some(entry.reference)
+        found = Some(entry)
       }
     }
-    guard found is Some(reference) else {
+    guard found is Some(entry) else {
       raise Invalid(0, "path not found: \{path}")
     }
-    node = self.inode(reference)
+    node = self.inode(entry.reference)
+    let basic_kind = if node.kind > 7 { node.kind - 7 } else { node.kind }
+    guard node.number == entry.number && basic_kind == entry.kind else {
+      raise Invalid(node.number, "directory/inode identity mismatch")
+    }
   }
   node
 }

@@ -206,7 +206,21 @@ fn Image::validate_layout(
           } else {
             0
           })
-        ignore(cursor.take(blocks * 4))
+        let descriptors = cursor.take(blocks * 4)
+        if kind == 9 {
+          let mut sparse = 0UL
+          for i in 0..<blocks {
+            if u32(descriptors, i * 4) == 0U {
+              sparse += Int::min(h.block_size, size - i * h.block_size).to_uint64()
+            }
+          }
+          guard u64(b, 16) == sparse else {
+            raise Invalid(
+              cursor.block,
+              "sparse byte count disagrees with blocks",
+            )
+          }
+        }
       }
       3 | 10 => {
         let b = cursor.take(8)
